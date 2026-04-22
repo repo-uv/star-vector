@@ -13,8 +13,8 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = [
-    "torch==2.5.1", 
-    "torchvision==0.20.1",
+    "torch==2.11.0",
+    "torchvision==0.26.0",
     "transformers==4.49.0", 
     "tokenizers==0.21.1", 
     "sentencepiece==0.2.0",    
@@ -46,14 +46,14 @@ dependencies = [
     "lxml", 
     "torch-fidelity", 
     "clip-openai",
-    "scipy==1.11.1",
+    "scipy==1.11.4",
     "sentence-transformers",
     "reportlab",
     "svglib",
     "Pillow",
     "protobuf",
     "openai",
-    "flash_attn==2.7.3"
+    "flash_attn==2.8.3; sys_platform == 'linux'"
 
 ]
 
@@ -62,7 +62,23 @@ train = ["deepspeed", "ninja", "wandb"]
 
 [project.urls]
 "Homepage" = "https://starvector.github.io"
-"Bug Tracker" = "https://github.com/joanrod/starvector/issues"
+"Bug Tracker" = "https://github.com/repo-uv/star-vector/issues"
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv]
+no-build-isolation-package = ["flash-attn"]
 
 [tool.setuptools.packages.find]
 exclude = ["assets*", "benchmark*", "docs", "dist*", "playground*", "scripts*", "tests*"]

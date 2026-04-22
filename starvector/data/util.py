@@ -8,7 +8,6 @@ import re
 from svgpathtools import svgstr2paths
 import numpy as np
 from PIL import Image
-import cairosvg
 from io import BytesIO
 import numpy as np
 import textwrap  
@@ -16,10 +15,21 @@ import os
 import base64
 import io
 
+try:
+    import cairosvg
+except (ImportError, OSError):
+    cairosvg = None
+
 
 
 CIRCLE_SVG = "<svg><circle cx='50%' cy='50%' r='50%' /></svg>"
 VOID_SVF = "<svg></svg>"
+
+
+def _strip_xml_header(svg_text):
+    return "\n".join(
+        line for line in svg_text.split("\n") if not line.strip().startswith("<?xml")
+    )
 
 def load_transforms():
     transforms = {
@@ -89,9 +99,13 @@ def clean_svg(svg_text, output_width=None, output_height=None):
     soup = BeautifulSoup(svg_text, 'xml') # Read as soup to parse as xml
     svg_bs4 = soup.prettify() # Prettify to get a string
 
+    if cairosvg is None:
+        return _strip_xml_header(svg_bs4)
+
     # Store the original signal handler
     import signal
-    original_handler = signal.getsignal(signal.SIGALRM)
+    has_alarm = hasattr(signal, "SIGALRM")
+    original_handler = signal.getsignal(signal.SIGALRM) if has_alarm else None
     
     try:
         # Set a timeout to prevent hanging
@@ -99,8 +113,9 @@ def clean_svg(svg_text, output_width=None, output_height=None):
             raise TimeoutError("SVG processing timed out")
         
         # Set timeout
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(5)
+        if has_alarm:
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)
         
         # Try direct conversion without BeautifulSoup
         svg_cairo = cairosvg.svg2svg(svg_bs4, output_width=output_width, output_height=output_height).decode()
@@ -110,10 +125,11 @@ def clean_svg(svg_text, output_width=None, output_height=None):
         svg_cairo = """<svg></svg>"""
     finally:
         # Always cancel the alarm and restore original handler, regardless of success or failure
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, original_handler)
+        if has_alarm:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, original_handler)
         
-    svg_clean = "\n".join([line for line in svg_cairo.split("\n") if not line.strip().startswith("<?xml")]) # Remove xml header
+    svg_clean = _strip_xml_header(svg_cairo)
     return svg_clean
 
 
@@ -136,6 +152,8 @@ def process_and_rasterize_svg(svg_string, resolution=256, dpi = 128, scale=2):
     return out_svg, raster_image
 
 def rasterize_svg(svg_string, resolution=224, dpi = 128, scale=2):
+    if cairosvg is None:
+        return Image.new('RGB', (resolution, resolution), color='white')
     try:
         svg_raster_bytes = cairosvg.svg2png(
             bytestring=svg_string,

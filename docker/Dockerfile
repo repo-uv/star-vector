@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
+FROM pytorch/pytorch:2.11.0-cuda13.0-cudnn9-devel
 
 # Install necessary dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     build-essential \
     libcairo2 \
-    cuda-compiler-12-4 \
     libaio-dev \
     && rm -rf /var/lib/apt/lists/*
 

@@ -76,28 +76,25 @@ StarVector uses a multimodal architecture to process images and text. When perfo
 
 1. Clone this repository and navigate to star-vector folder
 ```bash
-git clone https://github.com/joanrod/star-vector.git
+git clone https://github.com/repo-uv/star-vector.git
 cd star-vector
 ```
 
-2. Install Package
+2. Install the locked environment with `uv`
 ```Shell
-conda create -n starvector python=3.11.3 -y
-conda activate starvector
-pip install --upgrade pip  # enable PEP 660 support
-pip install -e .
+uv python install 3.12
+uv sync --locked
 ```
 
-3. Install additional packages for training
-```
-pip install -e ".[train]"
-```
+`uv` will create `.venv` automatically. Use `uv sync --locked --extra train` to install training dependencies. Unless you activate `.venv` yourself, prefix commands below with `uv run`.
+
+This repository defaults to Python 3.12, pins PyTorch `2.11.0` / TorchVision `0.26.0`, and routes Linux and Windows installs to the official CUDA 13 (`cu130`) PyTorch index. `flash-attn` is installed only on Linux, where it is used as an optional acceleration dependency.
 
 ### Upgrade to latest code base
 
 ```Shell
 git pull
-pip install -e .
+uv sync --locked
 ```
 
 ## Quick Start - Image2SVG Generation
@@ -195,7 +192,7 @@ See our [Huggingface 🤗 Dataset Collection](https://huggingface.co/collections
 ### Confirm dependencies are installed
 
 ```bash
-pip install -e ".[train]"
+uv sync --locked --extra train
 ```
 
 ### Set environment variables
@@ -224,7 +221,7 @@ You can use the following command to train StarVector-1B on SVG-Stack for the Im
 
 ```bash
 # StarVector-1B
-accelerate launch --config_file configs/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/im2svg-stack.yaml
+uv run accelerate launch --config_file configs/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/im2svg-stack.yaml
 ```
 
 #### StarVector-8B Training
@@ -233,7 +230,7 @@ You can use the following command to train StarVector-8B on SVG-Stack for the Im
 
 ```bash
 # StarVector-8B
-torchrun \
+uv run torchrun \
   --nproc-per-node=8 \
   --nnodes=1 \
   starvector/train/train.py \
@@ -249,10 +246,10 @@ After pretraining StarVector on image vectorization, we finetune it on additiona
 
 ```bash
 # StarVector-1B
-accelerate launch --config_file config/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/text2svg-stack.yaml
+uv run accelerate launch --config_file configs/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/text2svg-stack.yaml
 
 # StarVector-8B
-torchrun \
+uv run torchrun \
   --nproc-per-node=8 \
   --nnodes=1 \
   starvector/train/train.py \
@@ -263,10 +260,10 @@ torchrun \
 
 ```bash
 # StarVector-1B
-accelerate launch --config_file config/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/im2svg-{fonts,icons,emoji}.yaml
+uv run accelerate launch --config_file configs/accelerate/deepspeed-8-gpu.yaml starvector/train/train.py config=configs/models/starvector-1b/im2svg-{fonts,icons,emoji}.yaml
 
 # StarVector-8B
-torchrun \
+uv run torchrun \
   --nproc-per-node=8 \
   --nnodes=1 \
   starvector/train/train.py \
@@ -284,12 +281,12 @@ Let's start with the evaluation for StarVector-1B and StarVector-8B on SVG-Stack
 
 ```bash
 # StarVector-1B on SVG-Stack, using the HuggingFace backend 
-python starvector/validation/validate.py \
+uv run python starvector/validation/validate.py \
 config=configs/generation/hf/starvector-1b/im2svg.yaml \
 dataset.dataset_name=starvector/svg-stack
 
 # StarVector-8B on SVG-Stack, using the vanilla HuggingFace generation API
-python starvector/validation/validate.py \
+uv run python starvector/validation/validate.py \
 config=configs/generation/hf/starvector-8b/im2svg.yaml \
 dataset.dataset_name=starvector/svg-stack
 ```
@@ -301,19 +298,19 @@ For using the vLLM backend (StarVectorVLLMAPIValidator), first install our StarV
 ```bash
 git clone https://github.com/starvector/vllm.git
 cd vllm
-pip install -e .
+uv pip install -e .
 ```
 
 Then, launch the using the vllm config file (it uses StarVectorVLLMValidator):
 
 ```bash
 # StarVector-1B
-python starvector/validation/validate.py \
+uv run python starvector/validation/validate.py \
 config=configs/generation/vllm/starvector-1b/im2svg.yaml \
 dataset.dataset_name=starvector/svg-stack
 
 # StarVector-8B
-python starvector/validation/validate.py \
+uv run python starvector/validation/validate.py \
 config=configs/generation/vllm/starvector-8b/im2svg.yaml \
 dataset.dataset_name=starvector/svg-stack
 ```
@@ -333,12 +330,12 @@ We provide a Gradio web UI for you to play with our model.
 
 #### Launch a controller
 ```Shell
-python -m starvector.serve.controller --host 0.0.0.0 --port 10000
+uv run python -m starvector.serve.controller --host 0.0.0.0 --port 10000
 ```
 
 #### Launch a gradio web server.
 ```Shell
-python -m starvector.serve.gradio_web_server --controller http://localhost:10000 --model-list-mode reload --port 7000
+uv run python -m starvector.serve.gradio_web_server --controller http://localhost:10000 --model-list-mode reload --port 7000
 ```
 You just launched the Gradio web interface. Now, you can open the web interface with the URL printed on the screen. You may notice that there is no model in the model list. Do not worry, as we have not launched any model worker yet. It will be automatically updated when you launch a model worker.
 
@@ -347,7 +344,7 @@ You just launched the Gradio web interface. Now, you can open the web interface 
 This is the actual *worker* that performs the inference on the GPU.  Each worker is responsible for a single model specified in `--model-path`.
 
 ```Shell
-python -m starvector.serve.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40000 --worker http://localhost:40000 --model-path joanrodai/starvector-1.4b
+uv run python -m starvector.serve.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40000 --worker http://localhost:40000 --model-path starvector/starvector-1b-im2svg
 ```
 Wait until the process finishes loading the model and you see "Uvicorn running on ...".  Now, refresh your Gradio web UI, and you will see the model you just launched in the model list.
 
@@ -355,9 +352,9 @@ You can launch as many workers as you want, and compare between different model 
 
 
 ```Shell
-vllm serve starvector/starvector-8b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8001 --max-model-len 16000
+uv run vllm serve starvector/starvector-8b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8001 --max-model-len 16000
 
-python -m starvector.serve.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port <different from 40000, say 40001> --worker http://localhost:<change accordingly, i.e. 40001> --model-path <ckpt2>
+uv run python -m starvector.serve.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port <different from 40000, say 40001> --worker http://localhost:<change accordingly, i.e. 40001> --model-path <ckpt2>
 ```
 
 #### Option 2: Launch VLLM
@@ -367,30 +364,30 @@ python -m starvector.serve.model_worker --host 0.0.0.0 --controller http://local
 ```Shell
 git clone https://github.com/starvector/vllm.git
 cd vllm
-pip install -e .
+uv pip install -e .
 ```
 
 1. Call this to launch the VLLM endpoint
 
 
 ```Shell
-vllm serve starvector/starvector-1b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8000 --max-model-len 8192
+uv run vllm serve starvector/starvector-1b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8000 --max-model-len 8192
 ```
 
 2. Create the demo for VLLM
 
 ```Shell
-python -m starvector.serve.vllm_api_gradio.controller --host 0.0.0.0 --port 10000
-python -m starvector.serve.vllm_api_gradio.gradio_web_server --controller http://localhost:10000 --model-list-mode reload --port 7000
-python -m starvector.serve.vllm_api_gradio.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40000 --worker http://localhost:40000 --model-name starvector/starvector-1b-im2svg --vllm-base-url http://localhost:8000
+uv run python -m starvector.serve.vllm_api_gradio.controller --host 0.0.0.0 --port 10000
+uv run python -m starvector.serve.vllm_api_gradio.gradio_web_server --controller http://localhost:10000 --model-list-mode reload --port 7000
+uv run python -m starvector.serve.vllm_api_gradio.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40000 --worker http://localhost:40000 --model-name starvector/starvector-1b-im2svg --vllm-base-url http://localhost:8000
 ```
 
 3. Add more models by serving them with VLLM and calling a new model worker
 
 ```Shell
-vllm serve starvector/starvector-8b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8001 --max-model-len 16384
+uv run vllm serve starvector/starvector-8b-im2svg --chat-template configs/chat-template.jinja --trust-remote-code --port 8001 --max-model-len 16384
 
-python -m starvector.serve.vllm_api_gradio.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40001 --worker http://localhost:40001 --model-name starvector/starvector-8b-im2svg --vllm-base-url http://localhost:8001
+uv run python -m starvector.serve.vllm_api_gradio.model_worker --host 0.0.0.0 --controller http://localhost:10000 --port 40001 --worker http://localhost:40001 --model-name starvector/starvector-8b-im2svg --vllm-base-url http://localhost:8001
 ```
 
 ## Citation
